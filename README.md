@@ -2,6 +2,10 @@
 
 A cross-platform command-line tool for generating secure passwords.
 
+## Example
+
+![example](Example/pwgen.gif)
+
 ## Installation
 
 ### Prerequisites
