@@ -4,7 +4,7 @@ namespace PasswordGenCLI
 {
     internal class PasswordGenerator
     {
-        private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         private const string DefaultSymbols = @"+-/\|=_()[]{}!?@$#^%:*";
         private const int MinLength = 6;
         private const int MaxLength = 30;

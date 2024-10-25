@@ -1,8 +1,7 @@
 {
   "profiles": {
     "PasswordGenCLI": {
-      "commandName": "Project",
-      "commandLineArgs": "-l 8"
+      "commandName": "Project"
     }
   }
 }
