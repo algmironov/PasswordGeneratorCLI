@@ -1,8 +1,8 @@
 ﻿using System.Text;
 
-namespace PasswordGenCLI
+namespace PasswordGenCLI.Common
 {
-    internal class PasswordGenerator
+    public class PasswordGenerator
     {
         private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         private const string DefaultSymbols = @"+-/\|=_()[]{}!?@$#^%:*";
@@ -13,7 +13,7 @@ namespace PasswordGenCLI
 
         private static readonly Random Random = new();
 
-        public static string Generate(int length, string? symbols, bool useSpecialSymbols)
+        public static string Generate(int length, string? symbols, bool useSpecialSymbols = false)
         {
             length = Math.Clamp(length, MinLength, MaxLength);
             var sb = new StringBuilder();
