@@ -1,5 +1,7 @@
 ﻿using System.CommandLine;
 
+using PasswordGenCLI.Common;
+
 namespace PasswordGenCLI
 {
     internal class Program
