@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using System.Threading;
 
 using PasswordGenCLI.Common;
 
@@ -33,16 +34,26 @@ namespace PasswordGenCLI
             var newCommand = new Command("new", "Add new password");
             var newServiceOption = new Option<string>("--service", "Service name") { IsRequired = true };
             newServiceOption.AddAlias("-s");
+
             var newLoginOption = new Option<string>("--login", "Username or login") { IsRequired = true };
             newLoginOption.AddAlias("-l");
+
             newCommand.AddOption(newServiceOption);
             newCommand.AddOption(newLoginOption);
 
             var readCommand = new Command("read", "Read stored password");
             var readServiceOption = new Option<string>("--service", "Service name to read password for");
             readServiceOption.AddAlias("-s");
+
             var listOption = new Option<bool>("--list", "List all stored services and logins");
             listOption.AddAlias("-l");
+
+            var clipboardTimeoutOption = new Option<int>("--timeout",
+                getDefaultValue: () => 30,
+                description: "Clear clipboard after specified seconds (0 to disable)");
+            clipboardTimeoutOption.AddAlias("-t");
+
+            readCommand.AddOption(clipboardTimeoutOption);
             readCommand.AddOption(readServiceOption);
             readCommand.AddOption(listOption);
 
@@ -87,11 +98,11 @@ namespace PasswordGenCLI
                 return Task.FromResult(0);
             }, newServiceOption, newLoginOption);
 
-            readCommand.SetHandler((string service, bool list) =>
+            readCommand.SetHandler((string service, bool list, int timeout) =>
             {
-                EncryptionService.ReadPasswords(service, list);
+                EncryptionService.ReadPasswords(service, list, timeout);
                 return Task.FromResult(0);
-            }, readServiceOption, listOption);
+            }, readServiceOption, listOption, clipboardTimeoutOption);
 
             updateCommand.SetHandler((string service, string login) =>
             {

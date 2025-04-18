@@ -1,6 +1,8 @@
 ﻿using System.Security.Cryptography;
 using System.Text.Json;
 
+using TextCopy;
+
 namespace PasswordGenCLI.Common;
 public class EncryptionService
 {
@@ -248,7 +250,7 @@ public class EncryptionService
         Console.WriteLine($"Password for {service} with login {login} saved successfully.");
     }
 
-    public static void ReadPasswords(string service, bool list)
+    public static void ReadPasswords(string service, bool list, int clipboardTimeout)
     {
         string masterPassword = ReadPassword();
         var storage = LoadStorage(masterPassword);
@@ -284,7 +286,21 @@ public class EncryptionService
                 var entry = entries[0];
                 Console.WriteLine($"Service: {entry.Service}");
                 Console.WriteLine($"Login: {entry.Login}");
-                Console.WriteLine($"Password: {entry.Password}");
+
+                ClipboardService.SetText(entry.Password);
+                Console.WriteLine("Password has been copied to clipboard.");
+
+                if (clipboardTimeout > 0)
+                {
+                    Console.WriteLine($"Clipboard will be cleared in {clipboardTimeout} seconds.");
+
+                    Task.Run(async () => {
+                        await Task.Delay(clipboardTimeout * 1000);
+                        ClipboardService.SetText(string.Empty);
+                        Console.WriteLine("Clipboard has been cleared.");
+                    });
+                }
+
             }
             else
             {
@@ -300,7 +316,20 @@ public class EncryptionService
                     var entry = entries[index - 1];
                     Console.WriteLine($"Service: {entry.Service}");
                     Console.WriteLine($"Login: {entry.Login}");
-                    Console.WriteLine($"Password: {entry.Password}");
+                    
+                    ClipboardService.SetText(entry.Password);
+                    Console.WriteLine("Password has been copied to clipboard.");
+
+                    if (clipboardTimeout > 0)
+                    {
+                        Console.WriteLine($"Clipboard will be cleared in {clipboardTimeout} seconds.");
+
+                        Task.Run(async () => {
+                            await Task.Delay(clipboardTimeout * 1000);
+                            ClipboardService.SetText(string.Empty);
+                            Console.WriteLine("Clipboard has been cleared.");
+                        });
+                    }
                 }
                 else
                 {
@@ -457,6 +486,4 @@ public class EncryptionService
             Console.WriteLine("Operation cancelled.");
         }
     }
-}
-
 }
