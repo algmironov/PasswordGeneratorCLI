@@ -28,9 +28,45 @@ namespace PasswordGenCLI
                 description: "Include special characters");
             useSymbolsOption.AddAlias("-u");
 
+            var initCommand = new Command("init", "Initialize password storage");
+
+            var newCommand = new Command("new", "Add new password");
+            var newServiceOption = new Option<string>("--service", "Service name") { IsRequired = true };
+            newServiceOption.AddAlias("-s");
+            var newLoginOption = new Option<string>("--login", "Username or login") { IsRequired = true };
+            newLoginOption.AddAlias("-l");
+            newCommand.AddOption(newServiceOption);
+            newCommand.AddOption(newLoginOption);
+
+            var readCommand = new Command("read", "Read stored password");
+            var readServiceOption = new Option<string>("--service", "Service name to read password for");
+            readServiceOption.AddAlias("-s");
+            var listOption = new Option<bool>("--list", "List all stored services and logins");
+            listOption.AddAlias("-l");
+            readCommand.AddOption(readServiceOption);
+            readCommand.AddOption(listOption);
+
+            var updateCommand = new Command("update", "Update stored password");
+            var updateServiceOption = new Option<string>("--service", "Service name to update password for") { IsRequired = true };
+            updateServiceOption.AddAlias("-s");
+            var updateLoginOption = new Option<string>("--login", "Username or login") { IsRequired = false };
+            updateLoginOption.AddAlias("-l");
+            updateCommand.AddOption(updateServiceOption);
+            updateCommand.AddOption(updateLoginOption);
+
+            var deleteCommand = new Command("delete", "Delete stored password");
+            var deleteServiceOption = new Option<string>("--service", "Service name to delete") { IsRequired = true };
+            deleteServiceOption.AddAlias("-s");
+            deleteCommand.AddOption(deleteServiceOption);
+
             rootCommand.AddOption(lengthOption);
             rootCommand.AddOption(symbolsOption);
             rootCommand.AddOption(useSymbolsOption);
+            rootCommand.AddCommand(initCommand);
+            rootCommand.AddCommand(newCommand);
+            rootCommand.AddCommand(readCommand);
+            rootCommand.AddCommand(updateCommand);
+            rootCommand.AddCommand(deleteCommand);
 
             rootCommand.SetHandler((length, symbols, useSymbols) =>
             {
@@ -38,6 +74,36 @@ namespace PasswordGenCLI
                 Console.WriteLine(password);
                 return Task.FromResult(0);
             }, lengthOption, symbolsOption, useSymbolsOption);
+
+            initCommand.SetHandler(() =>
+            {
+                EncryptionService.InitializeStorage();
+                return Task.FromResult(0);
+            });
+
+            newCommand.SetHandler((string service, string login) =>
+            {
+                EncryptionService.AddNewPassword(service, login);
+                return Task.FromResult(0);
+            }, newServiceOption, newLoginOption);
+
+            readCommand.SetHandler((string service, bool list) =>
+            {
+                EncryptionService.ReadPasswords(service, list);
+                return Task.FromResult(0);
+            }, readServiceOption, listOption);
+
+            updateCommand.SetHandler((string service, string login) =>
+            {
+                EncryptionService.UpdatePassword(service, login);
+                return Task.FromResult(0);
+            }, updateServiceOption, updateLoginOption);
+
+            deleteCommand.SetHandler((string service) =>
+            {
+                EncryptionService.DeletePassword(service);
+                return Task.FromResult(0);
+            }, deleteServiceOption);
 
             return await rootCommand.InvokeAsync(args);
         }
