@@ -50,6 +50,11 @@ Generated\ Files/
 TestResult.xml
 nunit-*.xml
 
+# cline
+*.cline
+.clineIgnore
+.cline/
+
 # Build Results of an ATL Project
 [Dd]ebugPS/
 [Rr]eleasePS/
