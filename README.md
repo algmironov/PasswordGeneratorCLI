@@ -16,12 +16,17 @@ A cross-platform command-line tool for generating secure passwords.
 dotnet tool install --global PasswordGenCLI
 ```
 
+### Update version
+```bash
+dotnet tool update -g PasswordGenCLI
+```
+
 ### Manual Installation
 1. Clone the repository
 2. Run in the project directory:
 ```bash
 dotnet pack
-dotnet tool install --global --add-source ./nupkg PasswordGenCLI
+dotnet tool install --global --add-source ./nupkg PasswordGenCLI --version 2.0.0
 ```
 
 ## Usage

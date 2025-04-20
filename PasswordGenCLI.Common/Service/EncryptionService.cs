@@ -1,128 +1,13 @@
 ﻿using System.Security.Cryptography;
 using System.Text.Json;
 
+using PasswordGenCLI.Common.Models;
+
 using TextCopy;
 
-namespace PasswordGenCLI.Common;
+namespace PasswordGenCLI.Common.Service;
 public class EncryptionService
 {
-    public static string GetStoragePath()
-    {
-        string appDataPath;
-
-        if (OperatingSystem.IsWindows())
-        {
-            appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        }
-        else if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
-        {
-            appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        }
-        else
-        {
-            throw new PlatformNotSupportedException("Unsupported operating system");
-        }
-
-        string pwgenDir = Path.Combine(appDataPath, "pwgen");
-        Directory.CreateDirectory(pwgenDir);
-
-        return Path.Combine(pwgenDir, "storage.cpwgen");
-    }
-
-    public static string ReadPassword(string prompt = "Enter master password: ")
-    {
-        Console.Write(prompt);
-        string password = "";
-        ConsoleKeyInfo key;
-
-        do
-        {
-            key = Console.ReadKey(true);
-
-            if (key.Key != ConsoleKey.Enter)
-            {
-                if (key.Key == ConsoleKey.Backspace && password.Length > 0)
-                {
-                    password = password[..^1];
-                    Console.Write("\b \b");
-                }
-                else if (key.Key != ConsoleKey.Backspace)
-                {
-                    password += key.KeyChar;
-                    Console.Write("*");
-                }
-            }
-        }
-        while (key.Key != ConsoleKey.Enter);
-
-        Console.WriteLine();
-        return password;
-    }
-
-    public static byte[] DeriveKey(string password, byte[] salt)
-    {
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
-        return pbkdf2.GetBytes(32); 
-    }
-
-    public static byte[] Encrypt(string plainText, string password)
-    {
-        byte[] salt = new byte[16];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(salt);
-        }
-
-        byte[] key = DeriveKey(password, salt);
-        byte[] iv = new byte[16];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(iv);
-        }
-
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = iv;
-        aes.Mode = CipherMode.CBC;
-
-        using var encryptor = aes.CreateEncryptor();
-        using var ms = new MemoryStream();
-
-        ms.Write(salt, 0, salt.Length);
-        ms.Write(iv, 0, iv.Length);
-
-        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-        using (var sw = new StreamWriter(cs))
-        {
-            sw.Write(plainText);
-        }
-
-        return ms.ToArray();
-    }
-
-    public static string Decrypt(byte[] cipherText, string password)
-    {
-        byte[] salt = new byte[16];
-        byte[] iv = new byte[16];
-
-        Array.Copy(cipherText, 0, salt, 0, 16);
-        Array.Copy(cipherText, 16, iv, 0, 16);
-
-        byte[] key = DeriveKey(password, salt);
-
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = iv;
-        aes.Mode = CipherMode.CBC;
-
-        using var decryptor = aes.CreateDecryptor();
-        using var ms = new MemoryStream(cipherText, 32, cipherText.Length - 32);
-        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-        using var sr = new StreamReader(cs);
-
-        return sr.ReadToEnd();
-    }
-
     public static void InitializeStorage()
     {
         string storagePath = GetStoragePath();
@@ -133,7 +18,8 @@ public class EncryptionService
 
             // TODO manage invalid input
             string response = Console.ReadLine().ToLower();
-            if (response != "y" && response != "yes")
+
+            if (response == null || response != "y" && response != "yes")
             {
                 Console.WriteLine("Operation cancelled.");
                 return;
@@ -143,8 +29,8 @@ public class EncryptionService
         Console.WriteLine("Creating new password storage");
         Console.WriteLine("WARNING: If you forget your master password, your stored passwords CANNOT be recovered!");
 
-        string masterPassword = ReadPassword();
-        string confirmPassword = ReadPassword("Confirm master password: ");
+        string masterPassword = ReadMasterPassword();
+        string confirmPassword = ReadMasterPassword("Confirm master password: ");
 
         if (masterPassword != confirmPassword)
         {
@@ -158,48 +44,13 @@ public class EncryptionService
         byte[] encrypted = Encrypt(json, masterPassword);
         File.WriteAllBytes(storagePath, encrypted);
 
+        Console.Clear();
         Console.WriteLine("Password storage initialized successfully.");
     }
 
-    public static PasswordStorage? LoadStorage(string masterPassword)
+    public static void AddNewPassword(string service, string login, string url = "", string note = "")
     {
-        string storagePath = GetStoragePath();
-
-        if (!File.Exists(storagePath))
-        {
-            Console.WriteLine("Password storage not found. Please initialize it with 'pwgen init' command.");
-            return null;
-        }
-
-        try
-        {
-            byte[] encrypted = File.ReadAllBytes(storagePath);
-            string json = Decrypt(encrypted, masterPassword);
-            return JsonSerializer.Deserialize<PasswordStorage>(json);
-        }
-        catch (CryptographicException)
-        {
-            Console.WriteLine("Invalid master password or corrupted storage file.");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading storage: {ex.Message}");
-            return null;
-        }
-    }
-
-    public static void SaveStorage(PasswordStorage storage, string masterPassword)
-    {
-        string storagePath = GetStoragePath();
-        string json = JsonSerializer.Serialize(storage);
-        byte[] encrypted = Encrypt(json, masterPassword);
-        File.WriteAllBytes(storagePath, encrypted);
-    }
-
-    public static void AddNewPassword(string service, string login)
-    {
-        string masterPassword = ReadPassword();
+        string masterPassword = ReadMasterPassword();
 
         var storage = LoadStorage(masterPassword);
         if (storage == null) return;
@@ -232,18 +83,19 @@ public class EncryptionService
             bool useSymbols = useSpecial == "y" || useSpecial == "yes";
 
             password = PasswordGenerator.Generate(length, PasswordGenerator.GetDefaultSymbols(), useSymbols);
-            Console.WriteLine($"Generated password: {password}");
         }
         else
         {
-            password = ReadPassword("Enter password to store: ");
+            password = ReadMasterPassword("Enter password to store: ");
         }
 
         storage.Entries.Add(new PasswordEntry
         {
             Service = service,
             Login = login,
-            Password = password
+            Password = password,
+            Url = url,
+            Note = note
         });
 
         SaveStorage(storage, masterPassword);
@@ -252,8 +104,9 @@ public class EncryptionService
 
     public static void ReadPasswords(string service, bool list, int clipboardTimeout)
     {
-        string masterPassword = ReadPassword();
+        string masterPassword = ReadMasterPassword();
         var storage = LoadStorage(masterPassword);
+
         if (storage == null) return;
 
         if (list)
@@ -264,12 +117,7 @@ public class EncryptionService
                 return;
             }
 
-            Console.WriteLine("Stored passwords:");
-            Console.WriteLine("----------------");
-            foreach (var entry in storage.Entries)
-            {
-                Console.WriteLine($"Service: {entry.Service}, Login: {entry.Login}");
-            }
+            TablePrinter.PrintTable(storage.Entries);
         }
         else if (!string.IsNullOrEmpty(service))
         {
@@ -285,11 +133,17 @@ public class EncryptionService
             {
                 var entry = entries[0];
                 Console.WriteLine($"Service: {entry.Service}");
+
+                if (!string.IsNullOrEmpty(entry.Url))
+                {
+                    Console.WriteLine($"Url: {entry.Url}");
+                }
+
                 Console.WriteLine($"Login: {entry.Login}");
 
                 ClipboardService.SetText(entry.Password);
                 Console.WriteLine("Password has been copied to clipboard.");
-
+                
                 if (clipboardTimeout > 0)
                 {
                     Console.WriteLine($"Clipboard will be cleared in {clipboardTimeout} seconds.");
@@ -300,17 +154,16 @@ public class EncryptionService
                         Console.WriteLine("Clipboard has been cleared.");
                     });
                 }
-
             }
             else
             {
                 Console.WriteLine($"Multiple entries found for {service}:");
-                for (int i = 0; i < entries.Count; i++)
+                for (int i = 1; i < entries.Count; i++)
                 {
-                    Console.WriteLine($"{i + 1}. Login: {entries[i].Login}");
+                    Console.WriteLine($"{i}. Login: {entries[i].Login}");
                 }
 
-                Console.Write("Enter number to show password: ");
+                Console.Write("Enter number to copy password: ");
                 if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= entries.Count)
                 {
                     var entry = entries[index - 1];
@@ -345,7 +198,7 @@ public class EncryptionService
 
     public static void UpdatePassword(string service, string login)
     {
-        string masterPassword = ReadPassword();
+        string masterPassword = ReadMasterPassword();
         var storage = LoadStorage(masterPassword);
         if (storage == null) return;
 
@@ -372,9 +225,7 @@ public class EncryptionService
         PasswordEntry entryToUpdate;
 
         if (matchingEntries.Count == 1)
-        {
             entryToUpdate = matchingEntries[0];
-        }
         else
         {
             Console.WriteLine($"Multiple entries found for {service}:");
@@ -385,9 +236,7 @@ public class EncryptionService
 
             Console.Write("Enter number to update: ");
             if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= matchingEntries.Count)
-            {
                 entryToUpdate = matchingEntries[index - 1];
-            }
             else
             {
                 Console.WriteLine("Invalid selection.");
@@ -420,7 +269,7 @@ public class EncryptionService
         }
         else
         {
-            password = ReadPassword("Enter new password: ");
+            password = ReadMasterPassword("Enter new password: ");
         }
 
         entryToUpdate.Password = password;
@@ -431,7 +280,7 @@ public class EncryptionService
 
     public static void DeletePassword(string service)
     {
-        string masterPassword = ReadPassword();
+        string masterPassword = ReadMasterPassword();
         var storage = LoadStorage(masterPassword);
         if (storage == null) return;
 
@@ -447,9 +296,7 @@ public class EncryptionService
         PasswordEntry entryToDelete;
 
         if (matchingEntries.Count == 1)
-        {
             entryToDelete = matchingEntries[0];
-        }
         else
         {
             Console.WriteLine($"Multiple entries found for {service}:");
@@ -460,9 +307,7 @@ public class EncryptionService
 
             Console.Write("Enter number to delete: ");
             if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= matchingEntries.Count)
-            {
                 entryToDelete = matchingEntries[index - 1];
-            }
             else
             {
                 Console.WriteLine("Invalid selection.");
@@ -485,5 +330,156 @@ public class EncryptionService
         {
             Console.WriteLine("Operation cancelled.");
         }
+    }
+
+    private static string ReadMasterPassword(string prompt = "Enter master password: ")
+    {
+        Console.Write(prompt);
+        string password = "";
+        ConsoleKeyInfo key;
+
+        do
+        {
+            key = Console.ReadKey(true);
+
+            if (key.Key != ConsoleKey.Enter)
+            {
+                if (key.Key == ConsoleKey.Backspace && password.Length > 0)
+                {
+                    password = password[..^1];
+                    Console.Write("\b \b");
+                }
+                else if (key.Key != ConsoleKey.Backspace)
+                {
+                    password += key.KeyChar;
+                    Console.Write("*");
+                }
+            }
+        }
+        while (key.Key != ConsoleKey.Enter);
+
+        Console.WriteLine();
+        return password;
+    }
+
+    private static PasswordStorage? LoadStorage(string masterPassword)
+    {
+        string storagePath = GetStoragePath();
+
+        if (!File.Exists(storagePath))
+        {
+            Console.WriteLine("Password storage not found. Please initialize it with 'pwgen init' command.");
+            return null;
+        }
+
+        try
+        {
+            byte[] encrypted = File.ReadAllBytes(storagePath);
+            string json = Decrypt(encrypted, masterPassword);
+            return JsonSerializer.Deserialize<PasswordStorage>(json);
+        }
+        catch (CryptographicException)
+        {
+            Console.WriteLine("Invalid master password or corrupted storage file.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading storage: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void SaveStorage(PasswordStorage storage, string masterPassword)
+    {
+        string storagePath = GetStoragePath();
+        string json = JsonSerializer.Serialize(storage);
+        byte[] encrypted = Encrypt(json, masterPassword);
+        File.WriteAllBytes(storagePath, encrypted);
+    }
+
+    private static byte[] DeriveKey(string password, byte[] salt)
+    {
+        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
+        return pbkdf2.GetBytes(32);
+    }
+
+    private static byte[] Encrypt(string plainText, string password)
+    {
+        byte[] salt = new byte[16];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+        }
+
+        byte[] key = DeriveKey(password, salt);
+        byte[] iv = new byte[16];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(iv);
+        }
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.IV = iv;
+        aes.Mode = CipherMode.CBC;
+
+        using var encryptor = aes.CreateEncryptor();
+        using var ms = new MemoryStream();
+
+        ms.Write(salt, 0, salt.Length);
+        ms.Write(iv, 0, iv.Length);
+
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+        {
+            sw.Write(plainText);
+        }
+
+        return ms.ToArray();
+    }
+
+    private static string Decrypt(byte[] cipherText, string password)
+    {
+        byte[] salt = new byte[16];
+        byte[] iv = new byte[16];
+
+        Array.Copy(cipherText, 0, salt, 0, 16);
+        Array.Copy(cipherText, 16, iv, 0, 16);
+
+        byte[] key = DeriveKey(password, salt);
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.IV = iv;
+        aes.Mode = CipherMode.CBC;
+
+        using var decryptor = aes.CreateDecryptor();
+        using var ms = new MemoryStream(cipherText, 32, cipherText.Length - 32);
+        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+        using var sr = new StreamReader(cs);
+
+        return sr.ReadToEnd();
+    }
+
+    private static string GetStoragePath()
+    {
+        string appDataPath;
+
+        if (OperatingSystem.IsWindows())
+            appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        else if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+        {
+            appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        }
+        else
+        {
+            throw new PlatformNotSupportedException("Unsupported operating system");
+        }
+
+        string pwgenDir = Path.Combine(appDataPath, "pwgen");
+        Directory.CreateDirectory(pwgenDir);
+
+        return Path.Combine(pwgenDir, "storage.cpwgen");
     }
 }

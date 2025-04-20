@@ -1,7 +1,6 @@
 ﻿using System.CommandLine;
-using System.Threading;
 
-using PasswordGenCLI.Common;
+using PasswordGenCLI.Common.Service;
 
 namespace PasswordGenCLI
 {
@@ -38,8 +37,16 @@ namespace PasswordGenCLI
             var newLoginOption = new Option<string>("--login", "Username or login") { IsRequired = true };
             newLoginOption.AddAlias("-l");
 
+            var newUrlOption = new Option<string>("--url", "Service Url") { IsRequired = false };
+            newUrlOption.AddAlias("-u");
+
+            var newNoteOption = new Option<string>("--note", "Some note about entry") { IsRequired = false };
+            newNoteOption.AddAlias("-n");
+
             newCommand.AddOption(newServiceOption);
             newCommand.AddOption(newLoginOption);
+            newCommand.AddOption(newUrlOption);
+            newCommand.AddOption(newNoteOption);
 
             var readCommand = new Command("read", "Read stored password");
             var readServiceOption = new Option<string>("--service", "Service name to read password for");
@@ -92,11 +99,11 @@ namespace PasswordGenCLI
                 return Task.FromResult(0);
             });
 
-            newCommand.SetHandler((string service, string login) =>
+            newCommand.SetHandler((string service, string login, string url, string note) =>
             {
-                EncryptionService.AddNewPassword(service, login);
+                EncryptionService.AddNewPassword(service, login, url, note);
                 return Task.FromResult(0);
-            }, newServiceOption, newLoginOption);
+            }, newServiceOption, newLoginOption, newUrlOption, newNoteOption);
 
             readCommand.SetHandler((string service, bool list, int timeout) =>
             {

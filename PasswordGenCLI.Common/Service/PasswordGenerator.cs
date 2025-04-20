@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace PasswordGenCLI.Common
+namespace PasswordGenCLI.Common.Service
 {
     public class PasswordGenerator
     {
@@ -19,9 +19,7 @@ namespace PasswordGenCLI.Common
             var sb = new StringBuilder();
 
             if (useSpecialSymbols)
-            {
                 GenerateWithSpecialSymbols(sb, length, symbols ?? DefaultSymbols);
-            }
             else
             {
                 GenerateWithDelimiters(sb, length);
@@ -65,9 +63,7 @@ namespace PasswordGenCLI.Common
         private static int[] GetDelimiterPositions(int length)
         {
             if (length < MaxLengthForOneDelimiter)
-            {
                 return [length / 2];
-            }
 
             if (length < MaxLengthForTwoDelimiters)
             {
