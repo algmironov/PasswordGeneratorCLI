@@ -9,11 +9,16 @@ A cross-platform command-line tool for generating secure passwords.
 ## Installation
 
 ### Prerequisites
-- .NET 8.0 SDK or later
+- .NET 9.0 or later
 
 ### Install from NuGet
 ```bash
 dotnet tool install --global PasswordGenCLI
+```
+
+### Update version
+```bash
+dotnet tool update -g PasswordGenCLI
 ```
 
 ### Manual Installation
@@ -21,10 +26,47 @@ dotnet tool install --global PasswordGenCLI
 2. Run in the project directory:
 ```bash
 dotnet pack
-dotnet tool install --global --add-source ./nupkg PasswordGenCLI
+dotnet tool install --global --add-source ./nupkg PasswordGenCLI --version 2.0.0
 ```
 
 ## Usage
+
+### NEW FEATURES
+
+Init local secure storage:
+```bash
+pwgen init
+```
+
+Add new entry to storage:
+```bash
+pwgen new -s GitHub -l example@gmail.com
+```
+
+Read password from storage
+```bash
+pwgen read --service GitHub
+#if there are several entries for the same service they will be shown with logins to choose which password you want to copy
+```
+
+Read option for clipboard copy to set the timeout (in seconds). After expiration the password will be cleared from the clipboard.
+```bash
+pwgen read -s GitHub -t 30
+# copied password will be cleared from the clipboard after 30 second
+```
+There are also `update` and `delete` commands to update or delete entry from the storage
+```bash
+pwgen update -s GitHub -l example@gmail.com
+
+pwgen delete -s GitHub -l example@gmail.com
+```
+
+### BASE FEATURES
+Show all entries
+```bash
+pwgen read --list 
+```
+
 
 Generate a password with default settings (14 characters):
 ```bash
