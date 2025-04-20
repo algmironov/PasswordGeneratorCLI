@@ -55,6 +55,9 @@ public class EncryptionService
         var storage = LoadStorage(masterPassword);
         if (storage == null) return;
 
+        url ??= "";
+        note ??= "";
+
         if (storage.Entries.Exists(e => e.Service.Equals(service, StringComparison.OrdinalIgnoreCase) &&
                                         e.Login.Equals(login, StringComparison.OrdinalIgnoreCase)))
         {
