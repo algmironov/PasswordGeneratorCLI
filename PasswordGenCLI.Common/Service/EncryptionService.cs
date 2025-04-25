@@ -165,6 +165,8 @@ public class EncryptionService
                 Console.Write("Enter number to copy password: ");
                 if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= entries.Count)
                 {
+                    Console.Clear();
+
                     var entry = entries[index - 1];
                     Console.WriteLine($"Service: {entry.Service}");
                     Console.WriteLine($"Login: {entry.Login}");
@@ -185,6 +187,8 @@ public class EncryptionService
                 }
                 else
                 {
+                    Console.Clear();
+
                     Console.WriteLine("Invalid selection.");
                 }
             }

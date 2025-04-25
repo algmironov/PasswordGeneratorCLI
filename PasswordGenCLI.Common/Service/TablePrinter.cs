@@ -21,6 +21,8 @@ public static class TablePrinter
         static string Format(string value, int width) =>
             value.Length > width ? string.Concat(value.AsSpan(0, width - 3), "...") : value.PadRight(width);
 
+
+
         if (isColorSupported)
         {
             Console.BackgroundColor = ConsoleColor.Cyan;
@@ -66,13 +68,17 @@ public static class TablePrinter
         static string Format(string value, int width) =>
             value.Length > width ? string.Concat(value.AsSpan(0, width - 3), "...") : value.PadRight(width);
 
+
+        static string FormatPosition(string value) =>
+            value.ToString().PadLeft(3);
+
         if (isColorSupported)
         {
             Console.BackgroundColor = ConsoleColor.Cyan;
             Console.ForegroundColor = ConsoleColor.Black;
         }
 
-        Console.WriteLine($"{Format("#", numbersWidth)} {Format("Service", serviceWidth)} {Format("Login", loginWidth)} {Format("URL", urlWidth)} {Format("Note", noteWidth)}");
+        Console.WriteLine($"{FormatPosition("#")} {Format("Service", serviceWidth)} {Format("Login", loginWidth)} {Format("URL", urlWidth)} {Format("Note", noteWidth)}");
 
         if (isColorSupported)
             Console.ResetColor();
@@ -88,7 +94,7 @@ public static class TablePrinter
                 Console.ForegroundColor = ConsoleColor.Black;
             }
 
-            Console.WriteLine($"{Format(numbers[numberPosition++].ToString(), numbersWidth)} {Format(entry.Service, serviceWidth)} {Format(entry.Login, loginWidth)} {Format(entry.Url, urlWidth)} {Format(entry.Note, noteWidth)}");
+            Console.WriteLine($"{FormatPosition(numbers[numberPosition++].ToString())} {Format(entry.Service, serviceWidth)} {Format(entry.Login, loginWidth)} {Format(entry.Url, urlWidth)} {Format(entry.Note, noteWidth)}");
 
             if (isColorSupported)
                 Console.ResetColor();
