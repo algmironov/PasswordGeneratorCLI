@@ -3,8 +3,14 @@
 namespace PasswordGenCLI.Common.Service;
 public static class TablePrinter
 {
-    public static void PrintTable(IEnumerable<PasswordEntry> entries)
+    public static void PrintTable(IEnumerable<PasswordEntry> entries, bool includeNumbers)
     {
+        if (includeNumbers)
+        {
+            PrintWithNumbers(entries);
+            return;
+        }
+
         bool isColorSupported = IsColorSupported();
 
         const int serviceWidth = 15;
@@ -36,6 +42,53 @@ public static class TablePrinter
             }
 
             Console.WriteLine($"{Format(entry.Service, serviceWidth)} {Format(entry.Login, loginWidth)} {Format(entry.Url, urlWidth)} {Format(entry.Note, noteWidth)}");
+
+            if (isColorSupported)
+                Console.ResetColor();
+
+            index++;
+        }
+    }
+
+
+    private static void PrintWithNumbers (IEnumerable<PasswordEntry> entries)
+    {
+        bool isColorSupported = IsColorSupported();
+
+        const int numbersWidth = 5;
+        const int serviceWidth = 15;
+        const int loginWidth = 20;
+        const int urlWidth = 30;
+        const int noteWidth = 30;
+
+        var numbers = Enumerable.Range(1, entries.Count()).ToArray();
+
+        static string Format(string value, int width) =>
+            value.Length > width ? string.Concat(value.AsSpan(0, width - 3), "...") : value.PadRight(width);
+
+        if (isColorSupported)
+        {
+            Console.BackgroundColor = ConsoleColor.Cyan;
+            Console.ForegroundColor = ConsoleColor.Black;
+        }
+
+        Console.WriteLine($"{Format("#", numbersWidth)} {Format("Service", serviceWidth)} {Format("Login", loginWidth)} {Format("URL", urlWidth)} {Format("Note", noteWidth)}");
+
+        if (isColorSupported)
+            Console.ResetColor();
+
+        int index = 0;
+        int numberPosition = 0;
+
+        foreach (var entry in entries)
+        {
+            if (isColorSupported)
+            {
+                Console.BackgroundColor = index % 2 == 0 ? ConsoleColor.White : ConsoleColor.Gray;
+                Console.ForegroundColor = ConsoleColor.Black;
+            }
+
+            Console.WriteLine($"{Format(numbers[numberPosition++].ToString(), numbersWidth)} {Format(entry.Service, serviceWidth)} {Format(entry.Login, loginWidth)} {Format(entry.Url, urlWidth)} {Format(entry.Note, noteWidth)}");
 
             if (isColorSupported)
                 Console.ResetColor();

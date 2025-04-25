@@ -112,7 +112,7 @@ public class EncryptionService
 
         if (storage == null) return;
 
-        if (list)
+        if (list && string.IsNullOrEmpty(service))
         {
             if (storage.Entries.Count == 0)
             {
@@ -120,7 +120,7 @@ public class EncryptionService
                 return;
             }
 
-            TablePrinter.PrintTable(storage.Entries);
+            TablePrinter.PrintTable(storage.Entries, false);
         }
         else if (!string.IsNullOrEmpty(service))
         {
@@ -160,11 +160,7 @@ public class EncryptionService
             }
             else
             {
-                Console.WriteLine($"Multiple entries found for {service}:");
-                for (int i = 1; i < entries.Count; i++)
-                {
-                    Console.WriteLine($"{i}. Login: {entries[i].Login}");
-                }
+                TablePrinter.PrintTable(storage.Entries, true);
 
                 Console.Write("Enter number to copy password: ");
                 if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= entries.Count)
