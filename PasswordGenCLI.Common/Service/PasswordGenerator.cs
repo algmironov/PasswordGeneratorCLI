@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography;
+using System.Text;
 
 namespace PasswordGenCLI.Common.Service
 {
@@ -10,8 +11,6 @@ namespace PasswordGenCLI.Common.Service
         private const int MaxLength = 30;
         private const int MaxLengthForOneDelimiter = 14;
         private const int MaxLengthForTwoDelimiters = 20;
-
-        private static readonly Random Random = new();
 
         public static string Generate(int length, string? symbols, bool useSpecialSymbols = false)
         {
@@ -41,7 +40,7 @@ namespace PasswordGenCLI.Common.Service
             var availableChars = (Letters + symbols).ToCharArray();
             for (int i = 0; i < length; i++)
             {
-                sb.Append(availableChars[Random.Next(availableChars.Length)]);
+                sb.Append(availableChars[GetRandomNumber(availableChars.Length)]);
             }
         }
 
@@ -56,7 +55,7 @@ namespace PasswordGenCLI.Common.Service
                     sb.Append('-');
                     continue;
                 }
-                sb.Append(Letters[Random.Next(Letters.Length)]);
+                sb.Append(Letters[GetRandomNumber(Letters.Length)]);
             }
         }
 
@@ -73,6 +72,11 @@ namespace PasswordGenCLI.Common.Service
 
             var longStep = length / 4;
             return [longStep, longStep * 2, longStep * 3];
+        }
+
+        private static int GetRandomNumber(int maxValue)
+        {
+            return RandomNumberGenerator.GetInt32(maxValue);
         }
     }
 }

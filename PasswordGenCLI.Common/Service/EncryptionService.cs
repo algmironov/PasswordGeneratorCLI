@@ -8,6 +8,16 @@ using TextCopy;
 namespace PasswordGenCLI.Common.Service;
 public class EncryptionService
 {
+    private static readonly string _overwriteRequest = "Password storage already exists. Do you want to overwrite it? (y/n)";
+    private static readonly string _generateNewPasswordRequest = "Do you want to generate a new password? (y/n)";
+    private static readonly string _includeSpecialCharactersRequest = "Include special characters? (y/n, default: n): ";
+    private static readonly string _lengthRequest = "Password length (default 14): ";
+    private static readonly int _defaulthPasswordLength = 14;
+    private static readonly int _minPasswordLength = 8;
+    private static readonly int _maxPasswordLength = 64;
+    private static readonly int _iterationsCount = 10000;
+    private static readonly int _bufferSize = 16;
+
     public static void InitializeStorage()
     {
         string storagePath = GetStoragePath();
@@ -16,8 +26,7 @@ public class EncryptionService
         {
             Console.WriteLine("Password storage already exists. Do you want to overwrite it? (y/n)");
 
-            // TODO manage invalid input
-            string response = Console.ReadLine().ToLower();
+            var response = ReadRequiredInput(_overwriteRequest);
 
             if (response == null || response != "y" && response != "yes")
             {
@@ -65,24 +74,14 @@ public class EncryptionService
             return;
         }
 
-        Console.WriteLine("Do you want to generate a new password? (y/n)");
-
-        // TODO manage invalid input
-        string generateNew = Console.ReadLine().ToLower();
+        string generateNew = ReadRequiredInput(_generateNewPasswordRequest);
 
         string password;
         if (generateNew == "y" || generateNew == "yes")
         {
-            Console.Write("Password length (default 14): ");
+            int length = ReadIntInput(_lengthRequest, _defaulthPasswordLength, _minPasswordLength, _maxPasswordLength);
 
-            // TODO manage invalid input
-            string lengthInput = Console.ReadLine();
-            int length = string.IsNullOrEmpty(lengthInput) ? 14 : int.Parse(lengthInput);
-
-            Console.Write("Include special characters? (y/n, default: n): ");
-
-            // TODO manage invalid input
-            string useSpecial = Console.ReadLine().ToLower();
+            string useSpecial = ReadRequiredInput(_includeSpecialCharactersRequest);
             bool useSymbols = useSpecial == "y" || useSpecial == "yes";
 
             password = PasswordGenerator.Generate(length, PasswordGenerator.GetDefaultSymbols(), useSymbols);
@@ -124,7 +123,11 @@ public class EncryptionService
         }
         else if (!string.IsNullOrEmpty(service))
         {
-            var entries = storage.Entries.FindAll(e => e.Service.Equals(service, StringComparison.OrdinalIgnoreCase));
+            var entries = storage.Entries
+                                    .FindAll(e => e.Service
+                                                        .Contains(service, StringComparison.OrdinalIgnoreCase))
+                                    .OrderBy(e=>e.Equals(service))
+                                    .ToList();
 
             if (entries.Count == 0)
             {
@@ -134,6 +137,8 @@ public class EncryptionService
 
             if (entries.Count == 1)
             {
+                Console.Clear();
+
                 var entry = entries[0];
                 Console.WriteLine($"Service: {entry.Service}");
 
@@ -153,22 +158,31 @@ public class EncryptionService
 
                     Task.Run(async () => {
                         await Task.Delay(clipboardTimeout * 1000);
-                        ClipboardService.SetText(string.Empty);
-                        Console.WriteLine("Clipboard has been cleared.");
+
+                        try
+                        {
+                            ClipboardService.SetText(string.Empty);
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine($"Error reading passwords");
+                        }
                     });
                 }
             }
             else
             {
                 Console.WriteLine($"Multiple entries found for {service}:");
-                for (int i = 1; i < entries.Count; i++)
+                for (int i = 0; i < entries.Count; i++)
                 {
-                    Console.WriteLine($"{i}. Login: {entries[i].Login}");
+                    Console.WriteLine($"{i + 1}. Login: {entries[i].Login}");
                 }
 
                 Console.Write("Enter number to copy password: ");
                 if (int.TryParse(Console.ReadLine(), out int index) && index > 0 && index <= entries.Count)
                 {
+                    Console.Clear();
+
                     var entry = entries[index - 1];
                     Console.WriteLine($"Service: {entry.Service}");
                     Console.WriteLine($"Login: {entry.Login}");
@@ -183,7 +197,6 @@ public class EncryptionService
                         Task.Run(async () => {
                             await Task.Delay(clipboardTimeout * 1000);
                             ClipboardService.SetText(string.Empty);
-                            Console.WriteLine("Clipboard has been cleared.");
                         });
                     }
                 }
@@ -247,24 +260,14 @@ public class EncryptionService
             }
         }
 
-        Console.WriteLine("Do you want to generate a new password? (y/n)");
-
-        // TODO manage invalid input
-        string generateNew = Console.ReadLine().ToLower();
+        string generateNew = ReadRequiredInput(_generateNewPasswordRequest);
 
         string password;
         if (generateNew == "y" || generateNew == "yes")
         {
-            Console.Write("Password length (default 14): ");
+            int length = ReadIntInput(_lengthRequest, _defaulthPasswordLength, _minPasswordLength, _maxPasswordLength);
 
-            // TODO manage invalid input
-            string lengthInput = Console.ReadLine();
-            int length = string.IsNullOrEmpty(lengthInput) ? 14 : int.Parse(lengthInput);
-
-            Console.Write("Include special characters? (y/n, default: n): ");
-
-            // TODO manage invalid input
-            string useSpecial = Console.ReadLine().ToLower();
+            string useSpecial = ReadRequiredInput(_includeSpecialCharactersRequest);
             bool useSymbols = useSpecial == "y" || useSpecial == "yes";
 
             password = PasswordGenerator.Generate(length, PasswordGenerator.GetDefaultSymbols(), useSymbols);
@@ -318,10 +321,9 @@ public class EncryptionService
             }
         }
 
-        Console.WriteLine($"Are you sure you want to delete password for {service} with login {entryToDelete.Login}? (y/n)");
+        var deleteRequest = $"Are you sure you want to delete password for {service} with login {entryToDelete.Login}? (y/n)";
 
-        // TODO manage invalid input
-        string confirmation = Console.ReadLine().ToLower();
+        string confirmation = ReadRequiredInput(deleteRequest);
 
         if (confirmation == "y" || confirmation == "yes")
         {
@@ -386,6 +388,21 @@ public class EncryptionService
             Console.WriteLine("Invalid master password or corrupted storage file.");
             return null;
         }
+        catch (UnauthorizedAccessException)
+        {
+            Console.WriteLine("Error: Access denied to storage file.");
+            return null;
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"Error: Cannot read storage file - {ex.Message}");
+            return null;
+        }
+        catch (JsonException)
+        {
+            Console.WriteLine("Error: Storage file is corrupted.");
+            return null;
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading storage: {ex.Message}");
@@ -403,20 +420,20 @@ public class EncryptionService
 
     private static byte[] DeriveKey(string password, byte[] salt)
     {
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
+        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, _iterationsCount, HashAlgorithmName.SHA256);
         return pbkdf2.GetBytes(32);
     }
 
     private static byte[] Encrypt(string plainText, string password)
     {
-        byte[] salt = new byte[16];
+        byte[] salt = new byte[_bufferSize];
         using (var rng = RandomNumberGenerator.Create())
         {
             rng.GetBytes(salt);
         }
 
         byte[] key = DeriveKey(password, salt);
-        byte[] iv = new byte[16];
+        byte[] iv = new byte[_bufferSize];
         using (var rng = RandomNumberGenerator.Create())
         {
             rng.GetBytes(iv);
@@ -444,8 +461,8 @@ public class EncryptionService
 
     private static string Decrypt(byte[] cipherText, string password)
     {
-        byte[] salt = new byte[16];
-        byte[] iv = new byte[16];
+        byte[] salt = new byte[_bufferSize];
+        byte[] iv = new byte[_bufferSize];
 
         Array.Copy(cipherText, 0, salt, 0, 16);
         Array.Copy(cipherText, 16, iv, 0, 16);
@@ -484,5 +501,33 @@ public class EncryptionService
         Directory.CreateDirectory(pwgenDir);
 
         return Path.Combine(pwgenDir, "storage.cpwgen");
+    }
+
+    private static string ReadRequiredInput(string prompt)
+    {
+        while (true)
+        {
+            Console.Write(prompt);
+            string? input = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(input))
+                return input;
+
+            Console.WriteLine("Input cannot be empty. Please try again.");
+        }
+    }
+
+    private static int ReadIntInput(string prompt, int defaultValue, int min, int max)
+    {
+        Console.Write(prompt);
+        string? input = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(input))
+            return defaultValue;
+
+        if (int.TryParse(input, out int result) && result >= min && result <= max)
+            return result;
+
+        Console.WriteLine($"Invalid input. Using default: {defaultValue}");
+        return defaultValue;
     }
 }
